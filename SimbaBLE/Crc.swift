@@ -5,6 +5,7 @@
 //  Created by Alexey Chechetkin on 21.01.2018.
 //  Copyright © 2018 Alexey Chechetkin. All rights reserved.
 //
+//  This code was ported from original BlueST SDK
 
 import Foundation
 
