@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="13771" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+    <device id="retina4_7" orientation="portrait">
+        <adaptation id="fullscreen"/>
+    </device>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="13772"/>
+        <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="tne-QT-ifu">
+            <objects>
+                <viewController id="BYZ-38-t0r" customClass="ViewController" customModule="SimbaBLE" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Checking BLE..." lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="eBN-lY-FoD">
+                                <rect key="frame" x="16" y="36" width="351" height="21"/>
+                                <fontDescription key="fontDescription" type="system" weight="medium" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="MAC address" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="chy-n1-bRh">
+                                <rect key="frame" x="16" y="73" width="351" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="yZx-xF-Ogl">
+                                <rect key="frame" x="16" y="148" width="105" height="30"/>
+                                <state key="normal" title="Get FW version"/>
+                                <connections>
+                                    <action selector="buttonGetFwPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="Kb7-Qc-IWC"/>
+                                </connections>
+                            </button>
+                            <button opaque="NO" tag="1000" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ViC-LM-5iU">
+                                <rect key="frame" x="16" y="194" width="91" height="30"/>
+                                <state key="normal" title=" Fw Standard"/>
+                                <connections>
+                                    <action selector="updateFwButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="SKQ-Lz-Gkq"/>
+                                </connections>
+                            </button>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="---" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="tpv-XL-0op">
+                                <rect key="frame" x="175.5" y="312" width="23" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Fw version:" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="xF1-X1-0SY">
+                                <rect key="frame" x="16" y="110" width="86.5" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <progressView opaque="NO" contentMode="scaleToFill" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="b9X-3P-Jvn">
+                                <rect key="frame" x="32" y="290" width="311" height="2"/>
+                            </progressView>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="2Vb-r5-CHk">
+                                <rect key="frame" x="16" y="240" width="162" height="30"/>
+                                <state key="normal" title="Reconnect / Rediscover"/>
+                                <connections>
+                                    <action selector="reconnectButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="cBv-hO-olS"/>
+                                </connections>
+                            </button>
+                            <button opaque="NO" tag="1001" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="1yY-ZJ-tRI">
+                                <rect key="frame" x="123" y="194" width="43" height="30"/>
+                                <state key="normal" title="Fw 1.0"/>
+                                <connections>
+                                    <action selector="updateFwButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="fQp-r6-Zrx"/>
+                                </connections>
+                            </button>
+                            <button opaque="NO" tag="1002" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="WVJ-Yy-mFm">
+                                <rect key="frame" x="182" y="194" width="46" height="30"/>
+                                <state key="normal" title="Fw 2.0"/>
+                                <connections>
+                                    <action selector="updateFwButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="qtP-zO-6pr"/>
+                                </connections>
+                            </button>
+                            <button opaque="NO" tag="1003" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="MKU-es-l3B">
+                                <rect key="frame" x="244" y="194" width="46" height="30"/>
+                                <state key="normal" title="Fw 3.0"/>
+                                <connections>
+                                    <action selector="updateFwButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="1VC-Z1-4YD"/>
+                                </connections>
+                            </button>
+                        </subviews>
+                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstAttribute="trailingMargin" secondItem="b9X-3P-Jvn" secondAttribute="trailing" constant="16" id="2DY-ej-pbH"/>
+                            <constraint firstItem="ViC-LM-5iU" firstAttribute="top" secondItem="yZx-xF-Ogl" secondAttribute="bottom" constant="16" id="5N2-y6-jdS"/>
+                            <constraint firstItem="tpv-XL-0op" firstAttribute="top" secondItem="b9X-3P-Jvn" secondAttribute="bottom" constant="20" id="8cu-cX-Qgu"/>
+                            <constraint firstItem="eBN-lY-FoD" firstAttribute="top" secondItem="6Tk-OE-BBY" secondAttribute="top" constant="16" id="AKc-xd-HbW"/>
+                            <constraint firstItem="WVJ-Yy-mFm" firstAttribute="leading" secondItem="1yY-ZJ-tRI" secondAttribute="trailing" constant="16" id="Aqy-Nf-Yge"/>
+                            <constraint firstItem="tpv-XL-0op" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="Aw3-aM-vy4"/>
+                            <constraint firstItem="chy-n1-bRh" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="CGJ-7q-CrD"/>
+                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="trailing" secondItem="chy-n1-bRh" secondAttribute="trailing" constant="8" id="Cxx-WB-Mlb"/>
+                            <constraint firstItem="ViC-LM-5iU" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="K4L-QU-kBs"/>
+                            <constraint firstItem="1yY-ZJ-tRI" firstAttribute="centerY" secondItem="ViC-LM-5iU" secondAttribute="centerY" id="KkL-sf-mky"/>
+                            <constraint firstItem="b9X-3P-Jvn" firstAttribute="top" secondItem="2Vb-r5-CHk" secondAttribute="bottom" constant="20" id="MGP-Y9-Z1D"/>
+                            <constraint firstItem="2Vb-r5-CHk" firstAttribute="top" secondItem="ViC-LM-5iU" secondAttribute="bottom" constant="16" id="MVU-ws-KfH"/>
+                            <constraint firstItem="yZx-xF-Ogl" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="N5I-wJ-7so"/>
+                            <constraint firstItem="2Vb-r5-CHk" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="TY4-ZF-rLm"/>
+                            <constraint firstItem="xF1-X1-0SY" firstAttribute="top" secondItem="chy-n1-bRh" secondAttribute="bottom" constant="16" id="Vc7-8B-tiN"/>
+                            <constraint firstItem="WVJ-Yy-mFm" firstAttribute="baseline" secondItem="1yY-ZJ-tRI" secondAttribute="baseline" id="YNE-8c-qGB"/>
+                            <constraint firstItem="b9X-3P-Jvn" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leadingMargin" constant="16" id="Yo4-95-Gas"/>
+                            <constraint firstItem="1yY-ZJ-tRI" firstAttribute="leading" secondItem="ViC-LM-5iU" secondAttribute="trailing" constant="16" id="Z03-xr-qw7"/>
+                            <constraint firstItem="chy-n1-bRh" firstAttribute="top" secondItem="eBN-lY-FoD" secondAttribute="bottom" constant="16" id="abF-wD-8dU"/>
+                            <constraint firstItem="MKU-es-l3B" firstAttribute="leading" secondItem="WVJ-Yy-mFm" secondAttribute="trailing" constant="16" id="dqO-Dh-ZMy"/>
+                            <constraint firstItem="yZx-xF-Ogl" firstAttribute="top" secondItem="chy-n1-bRh" secondAttribute="bottom" constant="54" id="fBv-X5-31z"/>
+                            <constraint firstItem="xF1-X1-0SY" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="ifw-42-RC3"/>
+                            <constraint firstItem="eBN-lY-FoD" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="ldj-xO-zFF"/>
+                            <constraint firstItem="MKU-es-l3B" firstAttribute="baseline" secondItem="WVJ-Yy-mFm" secondAttribute="baseline" id="reh-U7-HmJ"/>
+                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="trailing" secondItem="eBN-lY-FoD" secondAttribute="trailing" constant="8" id="x6C-ZC-cUW"/>
+                        </constraints>
+                        <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
+                    </view>
+                    <connections>
+                        <outlet property="fwFlashLabel" destination="tpv-XL-0op" id="Xc7-Vc-es4"/>
+                        <outlet property="fwProgressBar" destination="b9X-3P-Jvn" id="AGk-h6-gxa"/>
+                        <outlet property="fwVersionLabel" destination="xF1-X1-0SY" id="Ikw-fk-Lgf"/>
+                        <outlet property="macAddressLabel" destination="chy-n1-bRh" id="fU0-a4-40W"/>
+                        <outlet property="msgLabel" destination="eBN-lY-FoD" id="S0O-SX-kqd"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
+            </objects>
+        </scene>
+    </scenes>
+</document>
