@@ -19,7 +19,9 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     let charDebugErrorUUID  =  CBUUID(string:"00000002-000E-11E1-AC36-0002A5D5C51B") // read only
     let charDebugTermUUID   =  CBUUID(string:"00000001-000E-11E1-AC36-0002A5D5C51B") // read, write, notify
     
+    // holds debug terminal characteristic
     var termChar: CBCharacteristic?
+    // holds debug error terminal characteristic
     var errChar: CBCharacteristic?
     
     // out message
@@ -46,12 +48,15 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         return NSData(contentsOf: url!)!
     }
     
+    // holds the copy of firmware data
+    // during firmware update process
     var fwContent = NSData()
     
+    // available firmwares
     let fwFiles = [ 1000 : "SensiBLE_SIMBA_ota", 1001 : "fw1", 1002 : "fw2", 1003 : "fw3"]
     
     // MARK: - Common service characterstic UUIDs
-    let charLuminosityUUID  =  CBUUID(string:"01000000-0001-11E1-AC36-0002A5D5C51B") // uint16 ???
+    let charLuminosityUUID  =  CBUUID(string:"01000000-0001-11E1-AC36-0002A5D5C51B") // uint16
     let charMicLevelUUID    =  CBUUID(string:"04000000-0001-11E1-AC36-0002A5D5C51B") // uint8, mic1, mic2 db
     let charTempUUID        =  CBUUID(string:"00040000-0001-11E1-AC36-0002A5D5C51B") // uint16 * 10
     let charHumidityUUID    =  CBUUID(string:"00080000-0001-11E1-AC36-0002A5D5C51B") // int16 * 10
@@ -67,6 +72,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     @IBOutlet weak var fwVersionLabel: UILabel!
     @IBOutlet weak var fwProgressBar: UIProgressView!
     
+    // update status message
     var msg: String? {
         didSet {
             msgLabel.text = msg
@@ -78,7 +84,6 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     override func viewDidLoad()
     {
         super.viewDidLoad()
-        
         centralManager = CBCentralManager(delegate: self, queue: nil);
     }
 
@@ -139,13 +144,14 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral)
     {
         print("CentralManager() -> Successfully connected to \(peripheral.name ?? "Unknown")")
-        msg = "Start to discover services ..."
+        msg = "Discovering services ..."
         
         peripheral.delegate = self
         peripheral.discoverServices(nil)
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        
         if let err = error {
             print("==> Disconect with device with Error: \(err.localizedDescription)")
         }
@@ -164,10 +170,13 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         macAddressLabel.text = ""
         fwVersionLabel.text = ""
         
-        print("==> Failed to connect to the device")
+        if let err = error {
+            print("==> Failed to connect to the device: \(err.localizedDescription)")
+        }
     }
     
     // MARK: CBPeripheralDelegate
+    
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?)
     {
         guard let services = peripheral.services else {
@@ -185,15 +194,11 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         print("Peripheral() -> Serivces discovered")
         
         for srv in services {
-            if let _ = srv.includedServices {
-                print("Peripheral() -> There is included services for service")
-            }
-
             print("Peripheral() -> Discover chars for service \(srv.uuid)")
             peripheral.discoverCharacteristics(nil, for: srv)
         }
         
-        msg = "Services Discovered"
+        msg = "Discovering characteristics..."
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?)
@@ -359,13 +364,14 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         }
         else {
             print("==> SendPackageBlock() Error: Device is not connected, fw aborted")
+            msg = "Can not send data, device/debug char is not available"
             return false
         }
     }
     
     
     func sendFwBlock() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01 /* 1/90 */ ) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + (1.0/90.0) ) {
             if self.sendFwPackage() {
                 self.sendFwBlock()
             }
@@ -410,15 +416,17 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 
                 if crc == fwCrc {
                     print("==> Crc checked OK, can start upload FW")
+                    msg = "Updating firmware..."
                     
                     fwBytesSended = 0
                     fwPackageSended = 0
                     fwUploadInProgress = true
                     
-                    // should start to send blocks
+                    // start to send blocks
                     sendFwBlock()
                 }
                 else {
+                    msg = "Update abortet, got wrong CRC code"
                     print("==> Wrong Crc retrieved from device")
                     fwStarted = false
                 }
@@ -463,6 +471,9 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                         
                         print("==> Name: \(name), mcu: \(mcuType), major:\(majoir), minor:\(minor), patch:\(patch)")
                     }
+                }
+                else {
+                    self.msg = msg as String
                 }
             }
         }

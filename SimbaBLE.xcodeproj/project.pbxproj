@@ -68,15 +68,23 @@
 				2C97C2131FEA979F00F47C16 /* ViewController.swift */,
 				2C988CF82014E1C000852B0F /* Crc.swift */,
 				2C97C2151FEA979F00F47C16 /* Main.storyboard */,
+				2C97C21A1FEA979F00F47C16 /* LaunchScreen.storyboard */,
+				2C97C2181FEA979F00F47C16 /* Assets.xcassets */,
+				2CF0AB652018762D005D7899 /* Firmwares */,
+				2C97C21D1FEA979F00F47C16 /* Info.plist */,
+			);
+			path = SimbaBLE;
+			sourceTree = "<group>";
+		};
+		2CF0AB652018762D005D7899 /* Firmwares */ = {
+			isa = PBXGroup;
+			children = (
 				2C988CFA2014F7D900852B0F /* SensiBLE_SIMBA_ota.bin */,
 				2C83FA1820177572009A8E25 /* fw1.bin */,
 				2C83FA1A20177578009A8E25 /* fw2.bin */,
 				2C83FA1C2017757E009A8E25 /* fw3.bin */,
-				2C97C2181FEA979F00F47C16 /* Assets.xcassets */,
-				2C97C21A1FEA979F00F47C16 /* LaunchScreen.storyboard */,
-				2C97C21D1FEA979F00F47C16 /* Info.plist */,
 			);
-			path = SimbaBLE;
+			path = Firmwares;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
