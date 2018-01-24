@@ -106,30 +106,14 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             print("CentralManager() -> Advertisment name: \(advName)")
         }
         
-        if let rawData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? NSData {
-            print("CentralManager() -> Manufacturer data: \(rawData.length)")
-            if rawData.length == 12 {
-                // full data is available, extract the MAC_ADDRESS
-                var b: UInt8  = 0
-                rawData.getBytes(&b, range: NSMakeRange(6, 1))
-                let a0 = b
-                rawData.getBytes(&b, range: NSMakeRange(7, 1))
-                let a1 = b
-                rawData.getBytes(&b, range: NSMakeRange(8, 1))
-                let a2 = b
-                rawData.getBytes(&b, range: NSMakeRange(9, 1))
-                let a3 = b
-                rawData.getBytes(&b, range: NSMakeRange(10, 1))
-                let a4 = b
-                rawData.getBytes(&b, range: NSMakeRange(11, 1))
-                let a5 = b
+        if let rawData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
+            print("CentralManager() -> Manufacturer data: \(rawData.count)")
+            if rawData.count == 12 {
+                let address = String(format: "%02x:%02x:%02x:%02x:%02x:%02x", rawData[6], rawData[7], rawData[8], rawData[9], rawData[10], rawData[11])
                 
-                let address = String(format: "%02x:%02x:%02x:%02x:%02x:%02x", a0, a1, a2, a3, a4, a5)
-                
-                // c0 82 30 34 52 31
                 print("CentralManager() -> MAC address: \(address)")
-                
                 macAddressLabel.text = "MAC address: \(address)"
+                
                 if !address.hasSuffix(":52:31") {
                     print("CentralManager() -> Not our device")
                     return
