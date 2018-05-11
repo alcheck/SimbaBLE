@@ -55,15 +55,70 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     // available firmwares
     let fwFiles = [ 1000 : "SensiBLE_SIMBA_ota", 1001 : "fw1", 1002 : "fw2", 1003 : "fw3"]
     
-    // MARK: - Common service characterstic UUIDs
-    let charLuminosityUUID  =  CBUUID(string:"01000000-0001-11E1-AC36-0002A5D5C51B") // uint16
-    let charMicLevelUUID    =  CBUUID(string:"04000000-0001-11E1-AC36-0002A5D5C51B") // uint8, mic1, mic2 db
-    let charTempUUID        =  CBUUID(string:"00040000-0001-11E1-AC36-0002A5D5C51B") // uint16 * 10
-    let charHumidityUUID    =  CBUUID(string:"00080000-0001-11E1-AC36-0002A5D5C51B") // int16 * 10
-    let charPressureUUID    =  CBUUID(string:"00100000-0001-11E1-AC36-0002A5D5C51B") // int32 * 100
-    let charBeamFormingUUID =  CBUUID(string:"00020000-0001-11E1-AC36-0002A5D5C51B") // - uint8
-    let charMovementUUID    =  CBUUID(string:"00E00000-0001-11E1-AC36-0002A5D5C51B") // acc, gyro * 10, mag
-    let charEnvironmentUUID =  CBUUID(string:"001C0000-0001-11E1-AC36-0002A5D5C51B") // pressure, humidity, temperature
+    // blueST advertisment packet
+    struct STAdvPacket {
+        // holds data
+        private var data: Data
+        
+        init(_ data: Data) {
+            self.data = data
+        }
+        
+        var isSTPacket: Bool {
+            return (data.count == 6 || data.count == 12) && protocolVer >= 1 // compact or full size packet
+        }
+        
+        var protocolVer: Int {
+            return Int(data[0])
+        }
+        
+        var deviceType: Int {
+            return Int(data[1])
+        }
+        
+        var macAddress: String? {
+            guard data.count == 12 else {
+                return nil
+            }
+            
+            return String(format: "%02x:%02x:%02x:%02x:%02x:%02x", data[6], data[7], data[8], data[9], data[10], data[11])
+        }
+    }
+    
+    // blueST common feature
+    struct STFeature {
+        // common service should ends with this suffix
+        static let serviceSuffixUUID = "-0001-11E1-9AB4-0002A5D5C51B"
+        
+        // blueST feature value type
+        enum FeatureType: Int {
+            case int16      // LE
+            case int32      // LE
+            case uint16     // LE
+            case uint32     // LE
+            case int16x3    // LE int16, int16, int16
+        }
+        
+        var name: String
+        var mask: UInt32
+        var unit: String
+        var type: FeatureType
+        var scale: Float
+        var translation: ((Float) -> Float)?
+    }
+    
+    // blueST featureMap
+    let featureMap: [STFeature] = [
+        STFeature(name: "Mic Level",        mask: 0x04000000, unit: "db",   type: .uint32,  scale: 1.0,  translation: nil),
+        STFeature(name: "Luminosity",       mask: 0x01000000, unit: "lux",  type: .uint16,  scale: 1.0,  translation: nil),
+        STFeature(name: "Accelerometer",    mask: 0x00800000, unit: "mg",   type: .int16x3, scale: 1.0,  translation: nil),
+        STFeature(name: "Gyroscope",        mask: 0x00400000, unit: "dps",  type: .int16x3, scale: 1.0,  translation: nil),
+        STFeature(name: "Magnetometer",     mask: 0x00200000, unit: "mGa",  type: .int16x3, scale: 1.0,  translation: nil),
+        STFeature(name: "Pressure",         mask: 0x00100000, unit: "mBar", type: .uint32,  scale: 0.01, translation: nil),
+        STFeature(name: "Humidity",         mask: 0x00080000, unit: "%",    type: .int16,   scale: 0.1,  translation: nil),
+        STFeature(name: "Temperature",      mask: 0x00040000, unit: "F",    type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 }),
+        STFeature(name: "Temperature 2",    mask: 0x00010000, unit: "F",    type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 })
+    ]
     
     // MARK: - UI outlets
     @IBOutlet weak var msgLabel: UILabel!
@@ -105,36 +160,28 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     // found device
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber)
     {
-        //msg = "Discovered peripheral - \(peripheral.name ?? "Unknown"), uuid:\(peripheral.identifier)"
+//        if let connectable = advertisementData[CBAdvertisementDataIsConnectable] as? NSNumber {
+//            print("CentralManager() -> Connectable: \(connectable.intValue)")
+//        }
+        
+        guard let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data else {
+            return
+        }
+        
+        let stPacket = STAdvPacket(data)
+        guard stPacket.isSTPacket else {
+            //print("CentralManager() -> Not ST packet")
+            return
+        }
         
         if let advName = advertisementData[CBAdvertisementDataLocalNameKey] as? String {
             print("CentralManager() -> Advertisment name: \(advName)")
         }
         
-        if let rawData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
-            print("CentralManager() -> Manufacturer data: \(rawData.count)")
-            if rawData.count == 12 {
-                let address = String(format: "%02x:%02x:%02x:%02x:%02x:%02x", rawData[6], rawData[7], rawData[8], rawData[9], rawData[10], rawData[11])
-                
-                print("CentralManager() -> MAC address: \(address)")
-                macAddressLabel.text = "MAC address: \(address)"
-                
-                if !address.hasSuffix(":52:31") {
-                    print("CentralManager() -> Not our device")
-                    return
-                }
-            }
-        }
+        print("CentralManager() -> Protocol version: \(stPacket.protocolVer)")
+        print("CentralManager() -> Device type: \(stPacket.deviceType)")
 
-        guard let name = advertisementData[CBAdvertisementDataLocalNameKey] as? String,
-                  name.hasPrefix("SIM-BS1") ||
-                  name.hasPrefix("SensiBLE") ||
-                  name.hasPrefix("SensBLE")
-        else {
-            return
-        }
-        
-        msg = "Connecting to \(name)..."
+        msg = "Connecting to \(peripheral.name ?? "-")..."
         
         self.peripheral = peripheral
         central.connect(peripheral, options: nil)
@@ -143,7 +190,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     // connected to the device
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral)
     {
-        print("CentralManager() -> Successfully connected to \(peripheral.name ?? "Unknown")")
+        print("CentralManager() -> Successfully connected to \(peripheral.name ?? "-")")
         msg = "Discovering services ..."
         
         peripheral.delegate = self
@@ -194,8 +241,11 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         print("Peripheral() -> Serivces discovered")
         
         for srv in services {
-            print("Peripheral() -> Discover chars for service \(srv.uuid)")
-            peripheral.discoverCharacteristics(nil, for: srv)
+            let uuid = srv.uuid.uuidString
+            if uuid.hasSuffix(STFeature.serviceSuffixUUID) {
+                print("Peripheral() -> Found common service, discovering chars")
+                peripheral.discoverCharacteristics(nil, for: srv)
+            }
         }
         
         msg = "Discovering characteristics..."
@@ -208,51 +258,27 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             return
         }
         
-        print("Peripheral() -> Found chars for service \(service.uuid)")
-        
         for char in chars {
+            let data = char.uuid.data as NSData
+            var mask: UInt32 = 0
+            data.getBytes(&mask, length: 4)
+            // turn to BE
+            var temp: UInt32 = 0
+            temp |= (mask & 0x000000ff) << 24
+            temp |= (mask & 0x0000ff00) << 8
+            temp |= (mask & 0x00ff0000) >> 8
+            temp |= (mask & 0xff000000) >> 24
             
-            // save debug chars
-            switch char.uuid {
-                case charDebugTermUUID:
-                    peripheral.setNotifyValue(true, for: char)
-                    termChar = char
-                
-                case charDebugErrorUUID:
-                    peripheral.setNotifyValue(true, for: char)
-                    errChar = char
-                
-                default:
-                    break
+            mask = temp
+            
+            let maskStr = String(format:"0x%08x", mask)
+            print("-> Char mask: \(maskStr), \(char.uuid)")
+            
+            for feature in featureMap {
+                if ( feature.mask & mask ) != 0 {
+                    print("-> Found feature: \(feature.name)")
+                }
             }
-            
-            var props = ""
-            
-            if char.properties.contains(.read) {
-                props += "read | "
-                //peripheral.readValue(for: char)
-            }
-            
-            if char.properties.contains(.write) {
-                props += "write | "
-            }
-            
-//            if char.properties.contains(.notify) &&
-//                (char.uuid == charMovementUUID || char.uuid == charBeamFormingUUID)
-//            {
-//                props += "notify | "
-//                peripheral.setNotifyValue(true, for: char)
-//            }
-            
-            if char.properties.contains(.broadcast) {
-                props += "broadcast | "
-            }
-            
-            if char.properties.contains(.writeWithoutResponse) {
-                props += "write w/o response"
-            }
-            
-            print("Peripheral() -> Char \(char.uuid) props: \(props)")
         }
     }
     
