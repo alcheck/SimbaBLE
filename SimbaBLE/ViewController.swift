@@ -15,7 +15,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     var initialized = false
     var peripheral: CBPeripheral?
     
-    // MAR: - Debug service characteristic UUIDs
+    // MARK: - Debug service characteristic UUIDs
     let charDebugErrorUUID  =  CBUUID(string:"00000002-000E-11E1-AC36-0002A5D5C51B") // read only
     let charDebugTermUUID   =  CBUUID(string:"00000001-000E-11E1-AC36-0002A5D5C51B") // read, write, notify
     
@@ -55,7 +55,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     // available firmwares
     let fwFiles = [ 1000 : "SensiBLE_SIMBA_ota", 1001 : "fw1", 1002 : "fw2", 1003 : "fw3"]
     
-    // MARK: - Common service characterstic UUIDs
+    // MARK: - Common service characterstic UUIDs for SymbaPRO
     let charLuminosityUUID  =  CBUUID(string:"01000000-0001-11E1-AC36-0002A5D5C51B") // uint16
     let charMicLevelUUID    =  CBUUID(string:"04000000-0001-11E1-AC36-0002A5D5C51B") // uint8, mic1, mic2 db
     let charTempUUID        =  CBUUID(string:"00040000-0001-11E1-AC36-0002A5D5C51B") // uint16 * 10
@@ -64,6 +64,10 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     let charBeamFormingUUID =  CBUUID(string:"00020000-0001-11E1-AC36-0002A5D5C51B") // - uint8
     let charMovementUUID    =  CBUUID(string:"00E00000-0001-11E1-AC36-0002A5D5C51B") // acc, gyro * 10, mag
     let charEnvironmentUUID =  CBUUID(string:"001C0000-0001-11E1-AC36-0002A5D5C51B") // pressure, humidity, temperature
+    
+    // MARK: - Common service chars UUID for OnSemi RSL10
+    let onSemiCharLuxUUID = CBUUID(string: "E093F3B5-00A3-A9E5-9ECA-40036E0EDC24")  // Luminosity uint32 * 1000 - 4 bytes, lx
+    let onSemiCharPirUUID = CBUUID(string: "E093F3B5-00A3-A9E5-9ECA-40046E0EDC24")  // Movement detector - 1 bytes
     
     // MARK: - UI outlets
     @IBOutlet weak var msgLabel: UILabel!
@@ -112,7 +116,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         }
         
         if let rawData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
-            print("CentralManager() -> Manufacturer data: \(rawData.count)")
+            print("CentralManager() -> \(peripheral.name ?? "Unknown") Manufacturer data: \(rawData.count)")
             if rawData.count == 12 {
                 let address = String(format: "%02x:%02x:%02x:%02x:%02x:%02x", rawData[6], rawData[7], rawData[8], rawData[9], rawData[10], rawData[11])
                 
@@ -120,16 +124,26 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 macAddressLabel.text = "MAC address: \(address)"
                 
                 if !address.hasSuffix(":52:31") {
-                    print("CentralManager() -> Not our device")
+                    print("CentralManager() -> this MAC address is not our device's")
                     return
                 }
+            }
+            else if rawData.count == 10 {
+                // the standard implementation has only 4 bytes of product id
+                // the custom implementation adds 6 bytes to that - this is mac address
+                // first 4 symbols should be 62:03:03:03
+                // big endian order
+                let address = String(format:"%02x:%02x:%02x:%02x:%02x:%02x", rawData[9], rawData[8], rawData[7], rawData[6], rawData[5], rawData[4])
+                
+                print("CentralManager() -> \(peripheral.name ?? "") MAC address: \(address)")
             }
         }
 
         guard let name = advertisementData[CBAdvertisementDataLocalNameKey] as? String,
-                  name.hasPrefix("SIM-BS1") ||
-                  name.hasPrefix("SensiBLE") ||
-                  name.hasPrefix("SensBLE")
+//                  name.hasPrefix("SIM-BS1") ||
+//                  name.hasPrefix("SensiBLE") ||
+//                  name.hasPrefix("SensBLE") ||
+                  name.hasPrefix("Arrow_")
         else {
             return
         }
@@ -191,10 +205,10 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             return
         }
         
-        print("Peripheral() -> Serivces discovered")
+        print("Peripheral() -> Services discovered, discovering chars...")
         
         for srv in services {
-            print("Peripheral() -> Discover chars for service \(srv.uuid)")
+            //print("Peripheral() -> Discover chars for service \(srv.uuid)")
             peripheral.discoverCharacteristics(nil, for: srv)
         }
         
@@ -229,12 +243,28 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             var props = ""
             
             if char.properties.contains(.read) {
-                props += "read | "
+                props += "-read"
                 //peripheral.readValue(for: char)
             }
             
             if char.properties.contains(.write) {
-                props += "write | "
+                props += "-write"
+            }
+            
+            if char.properties.contains(.notify) {
+                props += "-notify"
+                let uuid = char.uuid
+                
+                // subscribe to notification for OnSemi BLE
+                if uuid == onSemiCharPirUUID {
+                    print("Peripheral() -> Subscribed to char: \(uuid)")
+                    peripheral.setNotifyValue(true, for: char)
+                }
+                else if uuid == onSemiCharLuxUUID {
+                    Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                        peripheral.readValue(for: char)
+                    }
+                }
             }
             
 //            if char.properties.contains(.notify) &&
@@ -245,11 +275,11 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
 //            }
             
             if char.properties.contains(.broadcast) {
-                props += "broadcast | "
+                props += "-broadcast"
             }
             
             if char.properties.contains(.writeWithoutResponse) {
-                props += "write w/o response"
+                props += "-write[w/o response]"
             }
             
             print("Peripheral() -> Char \(char.uuid) props: \(props)")
@@ -324,6 +354,17 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
 //            let zMag = int16fromData(data, offset: 18)
 //
 //            print("movement len:\(data.count), acc:(\(xAcc),\(yAcc),\(zAcc)), gyro:(\(xGyro),\(yGyro),\(zGyro)), mag:(\(xMag),\(yMag),\(zMag))")
+            
+        case onSemiCharLuxUUID:
+            // print("Data length: \(data.count)")
+            let lux = float32fromData(data)
+            msg = "Luminosity: \(lux) lx"
+            print(msg!)
+            
+        case onSemiCharPirUUID:
+            let pirValue = uint8fromData(data)
+            msg = "Pir: \(pirValue)"
+            print(msg!)
             
         default:
             break
@@ -632,6 +673,19 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         let nsdata = data as NSData
         nsdata.getBytes(&t, range: NSMakeRange(offset, 4))
         return t
+    }
+    
+    func uint32fromData(_ data: Data, offset: Int = 0 ) -> UInt32
+    {
+        var t: UInt32 = 0
+        let nsdata = data as NSData
+        nsdata.getBytes(&t, range: NSMakeRange(offset, 4))
+        return t
+    }
+    
+    func float32fromData(_ data: Data, offset: Int = 0) -> Float
+    {
+        return Float(bitPattern: UInt32(bigEndian: data.withUnsafeBytes{ $0.pointee }))
     }
 }
 
