@@ -337,7 +337,6 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 feature.offset = offset
                 offset += feature.type.size
 
-                
                 var df = detectedFeatures[char, default: []]
                 df.append(feature)
                 
