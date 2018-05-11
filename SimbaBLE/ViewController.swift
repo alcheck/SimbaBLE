@@ -92,33 +92,69 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         
         // blueST feature value type
         enum FeatureType: Int {
+            case int8
+            case uint8
             case int16      // LE
             case int32      // LE
             case uint16     // LE
             case uint32     // LE
-            case int16x3    // LE int16, int16, int16
+            case int16x3    // LE int16 x 3
+            case int16x4    // LE int16 x 4
+            
+            var size: Int {
+                switch self {
+                case .int8, .uint8:
+                    return 1
+                case .int16, .uint16:
+                    return 2
+                case .int32, .uint32:
+                    return 4
+                case .int16x3:
+                    return 6
+                case .int16x4:
+                    return 8
+                }
+            }
         }
         
         var name: String
-        var mask: UInt32
         var unit: String
         var type: FeatureType
         var scale: Float
         var translation: ((Float) -> Float)?
+        var offset: Int
+        
+        init(_ name: String, unit: String, type: FeatureType, scale: Float = 1.0, translation: ((Float) -> Float)? = nil, offset: Int = 0) {
+            self.name = name
+            self.type = type
+            self.unit = unit
+            self.scale = scale
+            self.translation = translation
+            self.offset = offset
+        }
     }
     
     // blueST featureMap
-    let featureMap: [STFeature] = [
-        STFeature(name: "Mic Level",        mask: 0x04000000, unit: "db",   type: .uint32,  scale: 1.0,  translation: nil),
-        STFeature(name: "Luminosity",       mask: 0x01000000, unit: "lux",  type: .uint16,  scale: 1.0,  translation: nil),
-        STFeature(name: "Accelerometer",    mask: 0x00800000, unit: "mg",   type: .int16x3, scale: 1.0,  translation: nil),
-        STFeature(name: "Gyroscope",        mask: 0x00400000, unit: "dps",  type: .int16x3, scale: 1.0,  translation: nil),
-        STFeature(name: "Magnetometer",     mask: 0x00200000, unit: "mGa",  type: .int16x3, scale: 1.0,  translation: nil),
-        STFeature(name: "Pressure",         mask: 0x00100000, unit: "mBar", type: .uint32,  scale: 0.01, translation: nil),
-        STFeature(name: "Humidity",         mask: 0x00080000, unit: "%",    type: .int16,   scale: 0.1,  translation: nil),
-        STFeature(name: "Temperature",      mask: 0x00040000, unit: "F",    type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 }),
-        STFeature(name: "Temperature 2",    mask: 0x00010000, unit: "F",    type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 })
+    let featureMap: [UInt32: STFeature] = [
+        0x40000000: STFeature( "Adpm sync",            unit: "-",    type: .uint32),
+        0x20000000: STFeature( "Switch",               unit: "-",    type: .uint8),
+        0x10000000: STFeature( "Direction of arrival", unit: "-",    type: .int16),
+        0x08000000: STFeature( "Audio ADPCM",          unit: "-",    type: .int16),       // use full packet data size
+        0x04000000: STFeature( "Mic Level",            unit: "db",   type: .uint32),
+        0x02000000: STFeature( "Proximity",            unit: "mm",   type: .uint16),
+        0x01000000: STFeature( "Luminosity",           unit: "lux",  type: .uint16),
+        0x00800000: STFeature( "Accelerometer",        unit: "mg",   type: .int16x3),
+        0x00400000: STFeature( "Gyroscope",            unit: "dps",  type: .int16x3, scale: 0.1),
+        0x00200000: STFeature( "Magnetometer",         unit: "mGa",  type: .int16x3),
+        0x00100000: STFeature( "Pressure",             unit: "mBar", type: .uint32,  scale: 0.01),
+        0x00080000: STFeature( "Humidity",             unit: "%",    type: .int16,   scale: 0.1),
+        0x00040000: STFeature( "Temperature",          unit: "F",    type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 }),
+        0x00020000: STFeature( "Battery",              unit: "-",    type: .int16x4),
+        0x00010000: STFeature( "Temperature 2",        unit: "F",    type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 })
     ]
+    
+    // detected features
+    var detectedFeatures: [CBCharacteristic: [STFeature]] = [:]
     
     // MARK: - UI outlets
     @IBOutlet weak var msgLabel: UILabel!
@@ -160,10 +196,6 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     // found device
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber)
     {
-//        if let connectable = advertisementData[CBAdvertisementDataIsConnectable] as? NSNumber {
-//            print("CentralManager() -> Connectable: \(connectable.intValue)")
-//        }
-        
         guard let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data else {
             return
         }
@@ -244,8 +276,8 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             let uuid = srv.uuid.uuidString
             if uuid.hasSuffix(STFeature.serviceSuffixUUID) {
                 print("Peripheral() -> Found common service, discovering chars")
-                peripheral.discoverCharacteristics(nil, for: srv)
             }
+            peripheral.discoverCharacteristics(nil, for: srv)
         }
         
         msg = "Discovering characteristics..."
@@ -259,29 +291,69 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         }
         
         for char in chars {
-            let data = char.uuid.data as NSData
-            var mask: UInt32 = 0
-            data.getBytes(&mask, length: 4)
-            // turn to BE
-            var temp: UInt32 = 0
-            temp |= (mask & 0x000000ff) << 24
-            temp |= (mask & 0x0000ff00) << 8
-            temp |= (mask & 0x00ff0000) >> 8
-            temp |= (mask & 0xff000000) >> 24
             
-            mask = temp
+            if char.uuid == charDebugTermUUID {
+                print("-> Found DEBUG char")
+                termChar = char
+            }
+            else if char.uuid == charDebugErrorUUID {
+                //peripheral.setNotifyValue(true, for: char)
+                errChar = char
+            }
+            
+            if !service.uuid.uuidString.hasSuffix(STFeature.serviceSuffixUUID) {
+                continue
+            }
+            
+            let data = char.uuid.data as NSData
+            var beMask: UInt32 = 0
+            data.getBytes(&beMask, length: 4)
+            let mask = beToLe(beMask)
             
             let maskStr = String(format:"0x%08x", mask)
-            print("-> Char mask: \(maskStr), \(char.uuid)")
             
-            for feature in featureMap {
-                if ( feature.mask & mask ) != 0 {
-                    print("-> Found feature: \(feature.name)")
-                }
+            var prop = ""
+            if char.properties.contains(.notify) {
+                prop = "notify"
+            }
+            
+            if char.properties.contains(.read) {
+                prop += " read"
+            }
+            
+            if char.properties.contains(.write) {
+                prop += " write"
+            }
+            
+            print("-> Char mask: \(maskStr), \(prop)")
+            
+            var featureBit: UInt32 = 0x80000000
+            var offset = 2
+            for _ in 0..<16 {
+                // get mask
+                featureBit >>= 1
+                guard var feature = featureMap[featureBit] else { break }
+                
+                feature.offset = offset
+                offset += feature.type.size
+
+                
+                var df = detectedFeatures[char, default: []]
+                df.append(feature)
+                
+                print("-> Found feature: \(feature.name)")
             }
         }
     }
     
+    func beToLe(_ val: UInt32) -> UInt32 {
+        var res: UInt32 = 0
+        res |= (val & 0x000000ff) << 24
+        res |= (val & 0x0000ff00) << 8
+        res |= (val & 0x00ff0000) >> 8
+        res |= (val & 0xff000000) >> 24
+        return res
+    }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?)
     {
@@ -465,7 +537,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             
             // \r\n means end of the output message sequence
             if msg.hasSuffix("\r\n") {
-                print("==> Debug out message: \(stdOutMsg)")
+                //print("==> Debug out message: \(stdOutMsg)")
                 
                 let fwRegExp = try! NSRegularExpression(pattern: "(.*)_(.*)_(\\d+)\\.(\\d+)\\.(\\d+)", options: .anchorsMatchLines)
                 
@@ -496,6 +568,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                         let patch = Int(s.substring(with: patchRange))!
                         
                         print("==> Name: \(name), mcu: \(mcuType), major:\(majoir), minor:\(minor), patch:\(patch)")
+                        peripheral?.setNotifyValue(false, for: termChar!)
                     }
                 }
                 else {
@@ -547,6 +620,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         let data = getFwCmd.data(using: 5) // ISOLatinEncoding
         
         if let device = peripheral, device.state == .connected {
+            device.setNotifyValue(true, for: termChar)
             device.writeValue(data!, for: termChar, type: .withResponse )
         }
         else {
@@ -556,10 +630,6 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     
     @IBAction func reconnectButtonPressed(_ sender: UIButton) {
         if let manager = centralManager {
-//            manager.scanForPeripherals(withServices: [CBUUID(string:"00000000-0001-11E1-9AB4-0002A5D5C51B"),
-//                                                      CBUUID(string:"00000000-000E-11E1-9AB4-0002A5D5C51B"),
-//                                                      CBUUID(string:"00000000-000F-11E1-9AB4-0002A5D5C51B")],
-//                                       options: nil)
             manager.scanForPeripherals(withServices: nil, options: nil)
             
             peripheral = nil
