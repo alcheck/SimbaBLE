@@ -427,9 +427,6 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 peripheral.setNotifyValue(true, for: char)
             }
         }
-        
-        // here we have the table of features
-        //print("Detected features: \(detectedFeatures)")
     }
     
     var viewLastUpdatedTime = CACurrentMediaTime()
@@ -440,8 +437,6 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             print("Peripheral() -> \(error!.localizedDescription)")
             return
         }
-        
-        //let ts = uint16fromData(data)
 
         switch characteristic.uuid
         {
@@ -455,25 +450,15 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             if let idx = sensors.index(where: { $0.char === characteristic }) {
                 let sensor = sensors[idx]
                 sensor.processData(data)
-//                var updatedIndexes: [IndexPath] = []
-//                _ = sensor.features.reduce(idx) { r, _ in
-//                    updatedIndexes.append( IndexPath(row: r, section: 0) )
-//                    return r + 1
-//                }
-//
+                
                 let curTime = CACurrentMediaTime()
                 if (curTime - viewLastUpdatedTime) > 0.1 {
                     viewLastUpdatedTime = curTime
                     tableView.reloadData()
-//                    tableView.beginUpdates()
-//                    tableView.reloadRows(at: updatedIndexes, with: .none)
-//                    tableView.endUpdates()
                 }
-//
             }
         }
-    }
- 
+    } 
     
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         if characteristic.uuid == charDebugTermUUID {
