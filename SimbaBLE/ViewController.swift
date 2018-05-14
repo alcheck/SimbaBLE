@@ -9,7 +9,7 @@
 import UIKit
 import CoreBluetooth
 
-class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDelegate
+class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDelegate, UITableViewDelegate, UITableViewDataSource
 {
     var centralManager: CBCentralManager?
     var initialized = false
@@ -85,8 +85,8 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         }
     }
     
-    // blueST common feature
-    struct STFeature {
+    // blueST common feature, ref type
+    class STFeature {
         // common service should ends with this suffix
         static let serviceSuffixUUID = "-0001-11E1-9AB4-0002A5D5C51B"
         
@@ -123,6 +123,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         var scale: Float
         var translation: ((Float) -> Float)?
         var offset: Int
+        var lastValue: String   // holds last value
         
         init(_ name: String, unit: String, type: FeatureType, scale: Float = 1.0, translation: ((Float) -> Float)? = nil, offset: Int = 0) {
             self.name = name
@@ -131,6 +132,82 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             self.scale = scale
             self.translation = translation
             self.offset = offset
+            self.lastValue = "-"
+        }
+        
+        // process data and stores the value in the lastValue field
+        func processData(_ data: Data) {
+            switch type {
+            case .int8:
+                lastValue = "\(t(Float(data.int8(offset: offset))))"
+                
+            case .uint8:
+                lastValue = "\(t(Float(data.uint8(offset: offset))))"
+
+            case .int16:
+                lastValue = "\(t(Float(data.int16(offset: offset))))"
+
+            case .uint16:
+                lastValue = "\(t(Float(data.uint16(offset: offset))))"
+
+            case .int32:
+                lastValue = "\(t(Float(data.int32(offset: offset))))"
+
+            case .uint32:
+                lastValue = "\(t(Float(data.uint32(offset: offset))))"
+                
+            
+            case .int16x3:
+                let val0 = t(Float(data.int16(offset: offset)))
+                let val1 = t(Float(data.int16(offset: offset + 2)))
+                let val2 = t(Float(data.int16(offset: offset + 4)))
+                lastValue = "X:\(val0)\r\nY:\(val1)\r\nZ:\(val2)\r\n"
+
+            case .int16x4:
+                lastValue = "int16x4"
+            }
+        }
+        
+        private func t(_ v: Float ) -> Float {
+            var r = v * scale
+            if let trans = translation { r = trans(r) }
+            return r
+        }
+    }
+    
+    class STSensor: CustomStringConvertible {
+        var char: CBCharacteristic
+        var features: [STFeature] = []
+        
+        init(char: CBCharacteristic) {
+            self.char = char
+        }
+        
+        func addFeature(_ feature: STFeature) {
+            features.append(feature)
+        }
+        
+        func processData(_ data: Data) {
+            features.forEach{ $0.processData(data) }
+        }
+        
+        func indexOf(_ feature: STFeature) -> Int? {
+            for (i,v) in features.enumerated() {
+                if v === feature {
+                    return i
+                }
+            }
+            
+            return nil
+        }
+        
+        var description: String {
+            var res = ""
+            for (i, f) in features.enumerated() {
+                res += "[\(i)]: \(f.name), \(f.lastValue) \(f.unit)\r\n"
+            }
+            
+            return res
         }
     }
     
@@ -140,7 +217,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         0x20000000: STFeature( "Switch",               unit: "-",    type: .uint8),
         0x10000000: STFeature( "Direction of arrival", unit: "-",    type: .int16),
         0x08000000: STFeature( "Audio ADPCM",          unit: "-",    type: .int16),       // use full packet data size
-        0x04000000: STFeature( "Mic Level",            unit: "db",   type: .uint32),
+        0x04000000: STFeature( "Mic Level",            unit: "db",   type: .uint8),
         0x02000000: STFeature( "Proximity",            unit: "mm",   type: .uint16),
         0x01000000: STFeature( "Luminosity",           unit: "lux",  type: .uint16),
         0x00800000: STFeature( "Accelerometer",        unit: "mg",   type: .int16x3),
@@ -154,7 +231,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     ]
     
     // detected features
-    var detectedFeatures: [CBCharacteristic: [STFeature]] = [:]
+    var sensors: [STSensor] = []
     
     // MARK: - UI outlets
     @IBOutlet weak var msgLabel: UILabel!
@@ -162,6 +239,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     @IBOutlet weak var fwFlashLabel: UILabel!
     @IBOutlet weak var fwVersionLabel: UILabel!
     @IBOutlet weak var fwProgressBar: UIProgressView!
+    @IBOutlet weak var tableView: UITableView!
     
     // update status message
     var msg: String? {
@@ -176,6 +254,8 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     {
         super.viewDidLoad()
         centralManager = CBCentralManager(delegate: self, queue: nil);
+        tableView.dataSource = self
+        tableView.delegate = self
     }
 
     // MARK: CBCentralDelegate
@@ -295,10 +375,12 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             if char.uuid == charDebugTermUUID {
                 print("-> Found DEBUG char")
                 termChar = char
+                return
             }
             else if char.uuid == charDebugErrorUUID {
                 //peripheral.setNotifyValue(true, for: char)
                 errChar = char
+                return
             }
             
             if !service.uuid.uuidString.hasSuffix(STFeature.serviceSuffixUUID) {
@@ -308,51 +390,57 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             let data = char.uuid.data as NSData
             var beMask: UInt32 = 0
             data.getBytes(&beMask, length: 4)
-            let mask = beToLe(beMask)
+            let mask = beMask.beToLe()
             
             let maskStr = String(format:"0x%08x", mask)
             
             var prop = ""
-            if char.properties.contains(.notify) {
-                prop = "notify"
-            }
-            
-            if char.properties.contains(.read) {
-                prop += " read"
-            }
-            
-            if char.properties.contains(.write) {
-                prop += " write"
-            }
+            if char.properties.contains(.notify) { prop = "notify"  }
+            if char.properties.contains(.read) { prop += " read" }
+            if char.properties.contains(.write) { prop += " write" }
             
             print("-> Char mask: \(maskStr), \(prop)")
             
             var featureBit: UInt32 = 0x80000000
+            // starts with timestamp
             var offset = 2
+            
             for _ in 0..<16 {
                 // get mask
                 featureBit >>= 1
-                guard var feature = featureMap[featureBit] else { break }
+                //guard var feature = featureMap[featureBit] else { break }
                 
-                feature.offset = offset
-                offset += feature.type.size
-
-                var df = detectedFeatures[char, default: []]
-                df.append(feature)
-                
-                print("-> Found feature: \(feature.name)")
+                // this feature is detected in mask
+                if ( mask & featureBit ) != 0, let feature = featureMap[featureBit] {
+                    feature.offset = offset
+                    offset += feature.type.size
+                    
+                    // save this feature
+                    if let sensor = sensors.first(where: { $0.char === char }) {
+                        sensor.addFeature(feature)
+                    }
+                    else {
+                        let sensor = STSensor(char: char)
+                        sensor.addFeature(feature)
+                        sensors.append(sensor)
+                    }
+                    
+                    print("-> Found feature: \(feature.name)")
+                    tableView.reloadData()
+                }
+            }
+            
+            // enable notifications if this sensor was detected
+            if  sensors.first(where: { $0.char === char }) != nil && char.properties.contains(.notify) {
+                peripheral.setNotifyValue(true, for: char)
             }
         }
+        
+        // here we have the table of features
+        //print("Detected features: \(detectedFeatures)")
     }
     
-    func beToLe(_ val: UInt32) -> UInt32 {
-        var res: UInt32 = 0
-        res |= (val & 0x000000ff) << 24
-        res |= (val & 0x0000ff00) << 8
-        res |= (val & 0x00ff0000) >> 8
-        res |= (val & 0xff000000) >> 24
-        return res
-    }
+    var viewLastUpdatedTime = CACurrentMediaTime()
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?)
     {
@@ -370,62 +458,30 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             
         case charDebugErrorUUID:
             debugErrDataReceived(data)
-            
-//        case charEnvironmentUUID:
-//            //print("env set: data length = \(data.count)")
-//            let press = Double( int32fromData(data, offset: 2) ) * 0.01
-//            let hum = Double(uint16fromData(data, offset: 6)) * 0.1
-//            let t = Double( uint16fromData(data, offset: 8) ) * 0.1
-//            print("env pressure: \(press) mBar, humidity:\(hum)%, temp:\(t) C")
-//
-//        case charTempUUID:
-//            // int16 * 10
-//            let t = Double( uint16fromData(data, offset: 2) ) / 10.0
-//            print("temp len:\(data.count), temp:\(t) C")
-//
-//        case charLuminosityUUID:
-//            let l = Double( uint16fromData(data, offset: 2) )
-//            print("luminosity len:\(data.count), lum:\(l) lux")
-//
-//        case charMicLevelUUID:
-//            let mic1 = uint8fromData(data, offset: 2)
-//            let mic2 = uint8fromData(data, offset: 3)
-//            print("miclevel len:\(data.count), mic1:\(mic1) db, mic2:\(mic2) db")
-//
-//        case charHumidityUUID:
-//            let hum = Double(uint16fromData(data, offset: 2))/10.0
-//            print("humidity len:\(data.count), humidity:\(hum)%")
-//
-//        case charPressureUUID:
-//            let press = Double( int32fromData(data, offset: 2) ) / 100.0
-//            print("pressure len:\(data.count), press:\(press) mBar")
-            
-//        case charBeamFormingUUID:
-//            let x = Double( int16fromData(data, offset: 3) )
-//            let y = Double( int16fromData(data, offset: 5) )
-//            let z = Double( int16fromData(data, offset: 7) )
-//            let dir = uint8fromData(data, offset: 2)
-//            print("beam forming len:\(data.count), direction: \(dir), (\(x), \(y), \(z))")
-        
-//        case charMovementUUID:
-//            let xAcc = int16fromData(data, offset: 2)
-//            let yAcc = int16fromData(data, offset: 4)
-//            let zAcc = int16fromData(data, offset: 6)
-//
-//            let xGyro = Double( int16fromData(data, offset: 8) ) / 10.0
-//            let yGyro = Double( int16fromData(data, offset: 10) ) / 10.0
-//            let zGyro = Double( int16fromData(data, offset: 12) ) / 10.0
-//
-//            let xMag = int16fromData(data, offset: 14)
-//            let yMag = int16fromData(data, offset: 16)
-//            let zMag = int16fromData(data, offset: 18)
-//
-//            print("movement len:\(data.count), acc:(\(xAcc),\(yAcc),\(zAcc)), gyro:(\(xGyro),\(yGyro),\(zGyro)), mag:(\(xMag),\(yMag),\(zMag))")
-            
+
         default:
-            break
+            if let idx = sensors.index(where: { $0.char === characteristic }) {
+                let sensor = sensors[idx]
+                sensor.processData(data)
+//                var updatedIndexes: [IndexPath] = []
+//                _ = sensor.features.reduce(idx) { r, _ in
+//                    updatedIndexes.append( IndexPath(row: r, section: 0) )
+//                    return r + 1
+//                }
+//
+                let curTime = CACurrentMediaTime()
+                if (curTime - viewLastUpdatedTime) > 0.1 {
+                    viewLastUpdatedTime = curTime
+                    tableView.reloadData()
+//                    tableView.beginUpdates()
+//                    tableView.reloadRows(at: updatedIndexes, with: .none)
+//                    tableView.endUpdates()
+                }
+//
+            }
         }
     }
+ 
     
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         if characteristic.uuid == charDebugTermUUID {
@@ -695,38 +751,35 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         peripheral!.writeValue(mData as Data, for: termChar, type: .withResponse)        
     }
     
-    // MARK: - Helpers
-    
-    func uint16fromData( _ data:Data, offset:Int = 0 ) -> UInt16
-    {
-        var t: UInt16 = 0
-        let nsdata = data as NSData
-        nsdata.getBytes(&t, range: NSMakeRange(offset, 2))
-        return t
-    }
-    
-    func int16fromData( _ data:Data, offset:Int = 0 ) -> Int16
-    {
-        var t: Int16 = 0
-        let nsdata = data as NSData
-        nsdata.getBytes(&t, range: NSMakeRange(offset, 2))
-        return t
-    }
-    
-    func uint8fromData( _ data:Data, offset:Int = 0 ) -> UInt8
-    {
-        var t: UInt8 = 0
-        let nsdata = data as NSData
-        nsdata.getBytes(&t, range: NSMakeRange(offset, 1))
-        return t
-    }
 
-    func int32fromData( _ data:Data, offset:Int = 0 ) -> Int32
-    {
-        var t: Int32 = 0
-        let nsdata = data as NSData
-        nsdata.getBytes(&t, range: NSMakeRange(offset, 4))
-        return t
+    // MARK: - TableView Delegate & DataSource
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return 1
+    }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return sensors.reduce(0) { $0 + $1.features.count }
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: "sensorCell") as? SensorCell else {
+            preconditionFailure("Can not deque cell for sensor view table")
+        }
+        
+        var idx = 0
+        for sensor in sensors {
+            for feature in sensor.features {
+                if  idx == indexPath.row {
+                    cell.name.text = feature.name
+                    cell.value.text = feature.lastValue
+                    cell.units.text = feature.unit
+                    return cell
+                }
+                idx += 1
+            }
+        }
+        
+        preconditionFailure("Can not find sensor data for indexPath: \(indexPath)")
     }
 }
 
