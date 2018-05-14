@@ -32,21 +32,22 @@
                                 <nil key="highlightedColor"/>
                             </label>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="yZx-xF-Ogl">
-                                <rect key="frame" x="16" y="111" width="105" height="30"/>
+                                <rect key="frame" x="16" y="111" width="99" height="29"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                 <state key="normal" title="Get FW version"/>
                                 <connections>
                                     <action selector="buttonGetFwPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="Kb7-Qc-IWC"/>
                                 </connections>
                             </button>
                             <button opaque="NO" tag="1000" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ViC-LM-5iU">
-                                <rect key="frame" x="16" y="149" width="63" height="30"/>
+                                <rect key="frame" x="16" y="140" width="63" height="30"/>
                                 <state key="normal" title="Fw Stock"/>
                                 <connections>
                                     <action selector="updateFwButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="SKQ-Lz-Gkq"/>
                                 </connections>
                             </button>
                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="---" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="tpv-XL-0op">
-                                <rect key="frame" x="177.5" y="235" width="19.5" height="17"/>
+                                <rect key="frame" x="177.5" y="210" width="19.5" height="17"/>
                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                 <nil key="textColor"/>
                                 <nil key="highlightedColor"/>
@@ -58,32 +59,37 @@
                                 <nil key="highlightedColor"/>
                             </label>
                             <progressView opaque="NO" contentMode="scaleToFill" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="b9X-3P-Jvn">
-                                <rect key="frame" x="16" y="225" width="327" height="2"/>
+                                <rect key="frame" x="16" y="208" width="327" height="2"/>
                             </progressView>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="2Vb-r5-CHk">
-                                <rect key="frame" x="16" y="187" width="162" height="30"/>
+                                <rect key="frame" x="16" y="170" width="162" height="30"/>
                                 <state key="normal" title="Reconnect / Rediscover"/>
                                 <connections>
                                     <action selector="reconnectButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="cBv-hO-olS"/>
                                 </connections>
                             </button>
                             <button opaque="NO" tag="1002" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="WVJ-Yy-mFm">
-                                <rect key="frame" x="154" y="149" width="46" height="30"/>
+                                <rect key="frame" x="154" y="140" width="46" height="30"/>
                                 <state key="normal" title="Fw 2.0"/>
                                 <connections>
                                     <action selector="updateFwButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="qtP-zO-6pr"/>
                                 </connections>
                             </button>
                             <button opaque="NO" tag="1003" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="MKU-es-l3B">
-                                <rect key="frame" x="216" y="149" width="46" height="30"/>
+                                <rect key="frame" x="216" y="140" width="46" height="30"/>
                                 <state key="normal" title="Fw 3.0"/>
                                 <connections>
                                     <action selector="updateFwButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="1VC-Z1-4YD"/>
                                 </connections>
                             </button>
                             <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" translatesAutoresizingMaskIntoConstraints="NO" id="etQ-uu-bx2">
-                                <rect key="frame" x="16" y="260" width="343" height="387"/>
+                                <rect key="frame" x="16" y="235" width="343" height="412"/>
                                 <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <view key="tableFooterView" contentMode="scaleToFill" id="6fj-9z-DXV" userLabel="footer">
+                                    <rect key="frame" x="0.0" y="72" width="343" height="128"/>
+                                    <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                    <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                </view>
                                 <prototypes>
                                     <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" selectionStyle="blue" hidesAccessoryWhenEditing="NO" indentationLevel="1" indentationWidth="0.0" reuseIdentifier="sensorCell" id="zHj-QH-sUX" customClass="SensorCell" customModule="SimbaBLE" customModuleProvider="target">
                                         <rect key="frame" x="0.0" y="28" width="343" height="44"/>
@@ -104,12 +110,12 @@
                                                         <constraint firstAttribute="width" constant="40" id="daO-Ux-caL"/>
                                                     </constraints>
                                                     <fontDescription key="fontDescription" type="system" pointSize="14"/>
-                                                    <nil key="textColor"/>
+                                                    <color key="textColor" white="0.33333333333333331" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                     <nil key="highlightedColor"/>
                                                 </label>
                                                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Value" textAlignment="right" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="h0F-qk-pzc">
                                                     <rect key="frame" x="76.5" y="11" width="198.5" height="19"/>
-                                                    <fontDescription key="fontDescription" type="system" weight="medium" pointSize="14"/>
+                                                    <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="14"/>
                                                     <nil key="textColor"/>
                                                     <nil key="highlightedColor"/>
                                                 </label>
@@ -134,7 +140,7 @@
                                 </prototypes>
                             </tableView>
                             <button opaque="NO" tag="1001" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="1yY-ZJ-tRI">
-                                <rect key="frame" x="95" y="149" width="43" height="30"/>
+                                <rect key="frame" x="95" y="140" width="43" height="30"/>
                                 <state key="normal" title="Fw 1.0"/>
                                 <connections>
                                     <action selector="updateFwButtonPressed:" destination="BYZ-38-t0r" eventType="touchUpInside" id="fQp-r6-Zrx"/>
@@ -143,8 +149,8 @@
                         </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
-                            <constraint firstItem="ViC-LM-5iU" firstAttribute="top" secondItem="yZx-xF-Ogl" secondAttribute="bottom" constant="8" symbolic="YES" id="5N2-y6-jdS"/>
-                            <constraint firstItem="tpv-XL-0op" firstAttribute="top" secondItem="b9X-3P-Jvn" secondAttribute="bottom" constant="8" symbolic="YES" id="8cu-cX-Qgu"/>
+                            <constraint firstItem="ViC-LM-5iU" firstAttribute="top" secondItem="yZx-xF-Ogl" secondAttribute="bottom" id="5N2-y6-jdS"/>
+                            <constraint firstItem="tpv-XL-0op" firstAttribute="top" secondItem="b9X-3P-Jvn" secondAttribute="bottom" id="8cu-cX-Qgu"/>
                             <constraint firstItem="eBN-lY-FoD" firstAttribute="top" secondItem="6Tk-OE-BBY" secondAttribute="top" constant="16" id="AKc-xd-HbW"/>
                             <constraint firstItem="1yY-ZJ-tRI" firstAttribute="leading" secondItem="ViC-LM-5iU" secondAttribute="trailing" constant="16" id="ALh-rc-Tl2"/>
                             <constraint firstItem="tpv-XL-0op" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="Aw3-aM-vy4"/>
@@ -155,7 +161,7 @@
                             <constraint firstAttribute="trailingMargin" secondItem="b9X-3P-Jvn" secondAttribute="trailing" constant="16" id="JGx-Ve-ugg"/>
                             <constraint firstItem="1yY-ZJ-tRI" firstAttribute="centerY" secondItem="ViC-LM-5iU" secondAttribute="centerY" id="KkL-sf-mky"/>
                             <constraint firstItem="b9X-3P-Jvn" firstAttribute="top" secondItem="2Vb-r5-CHk" secondAttribute="bottom" constant="8" symbolic="YES" id="MGP-Y9-Z1D"/>
-                            <constraint firstItem="2Vb-r5-CHk" firstAttribute="top" secondItem="ViC-LM-5iU" secondAttribute="bottom" constant="8" symbolic="YES" id="MVU-ws-KfH"/>
+                            <constraint firstItem="2Vb-r5-CHk" firstAttribute="top" secondItem="ViC-LM-5iU" secondAttribute="bottom" id="MVU-ws-KfH"/>
                             <constraint firstItem="yZx-xF-Ogl" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="16" id="N5I-wJ-7so"/>
                             <constraint firstItem="yZx-xF-Ogl" firstAttribute="top" secondItem="xF1-X1-0SY" secondAttribute="bottom" constant="8" symbolic="YES" id="NSj-bI-BAk"/>
                             <constraint firstItem="xF1-X1-0SY" firstAttribute="top" secondItem="chy-n1-bRh" secondAttribute="bottom" constant="8" symbolic="YES" id="Vc7-8B-tiN"/>

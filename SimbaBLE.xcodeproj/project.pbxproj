@@ -72,10 +72,10 @@
 			children = (
 				2C97C2111FEA979F00F47C16 /* AppDelegate.swift */,
 				2C97C2131FEA979F00F47C16 /* ViewController.swift */,
+				2C25C0C120A99E19001D9F93 /* SensorCell.swift */,
 				2C25C0C320A9A8E8001D9F93 /* Data+Extension.swift */,
 				2C25C0C520A9A9CA001D9F93 /* UInt32+Extension.swift */,
 				2C988CF82014E1C000852B0F /* Crc.swift */,
-				2C25C0C120A99E19001D9F93 /* SensorCell.swift */,
 				2C97C2151FEA979F00F47C16 /* Main.storyboard */,
 				2C97C21A1FEA979F00F47C16 /* LaunchScreen.storyboard */,
 				2C97C2181FEA979F00F47C16 /* Assets.xcassets */,

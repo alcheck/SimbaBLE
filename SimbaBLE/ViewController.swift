@@ -92,14 +92,9 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         
         // blueST feature value type
         enum FeatureType: Int {
-            case int8
-            case uint8
-            case int16      // LE
-            case int32      // LE
-            case uint16     // LE
-            case uint32     // LE
-            case int16x3    // LE int16 x 3
-            case int16x4    // LE int16 x 4
+            case int8,  uint8
+            case int16, uint16, int16x3, int16x4
+            case int32, uint32
             
             var size: Int {
                 switch self {
@@ -154,14 +149,13 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 lastValue = "\(t(Float(data.int32(offset: offset))))"
 
             case .uint32:
-                lastValue = "\(t(Float(data.uint32(offset: offset))))"
-                
+                lastValue = "\(t(Float(data.uint32(offset: offset))))"                
             
             case .int16x3:
                 let val0 = t(Float(data.int16(offset: offset)))
                 let val1 = t(Float(data.int16(offset: offset + 2)))
                 let val2 = t(Float(data.int16(offset: offset + 4)))
-                lastValue = "X:\(val0)\r\nY:\(val1)\r\nZ:\(val2)\r\n"
+                lastValue = "X:\(val0)\r\nY:\(val1)\r\nZ:\(val2)"
 
             case .int16x4:
                 lastValue = "int16x4"
@@ -175,7 +169,10 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         }
     }
     
+    // compound ST sensor, holds array of ST
+    // features and BL characteristic related to them
     class STSensor: CustomStringConvertible {
+        
         var char: CBCharacteristic
         var features: [STFeature] = []
         
@@ -192,17 +189,11 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         }
         
         func indexOf(_ feature: STFeature) -> Int? {
-            for (i,v) in features.enumerated() {
-                if v === feature {
-                    return i
-                }
-            }
-            
-            return nil
+            return features.index(where: { $0 === feature })
         }
         
         var description: String {
-            var res = ""
+            var res = "\r\n"
             for (i, f) in features.enumerated() {
                 res += "[\(i)]: \(f.name), \(f.lastValue) \(f.unit)\r\n"
             }
@@ -427,6 +418,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                     
                     print("-> Found feature: \(feature.name)")
                     tableView.reloadData()
+                    msg = "Found \(sensors.count) sensors"
                 }
             }
             
