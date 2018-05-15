@@ -152,7 +152,13 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         var scale: Float
         var translation: ((Float) -> Float)?
         var offset: Int
-        var lastValue: String   // holds last value
+        var lastValue: String {
+            willSet(value) {
+                lastValueChanged = value != lastValue
+            }
+        }
+        var enabled: Bool
+        var lastValueChanged: Bool = true
         
         init(_ name: String, unit: String, type: FeatureType, scale: Float = 1.0, translation: ((Float) -> Float)? = nil, offset: Int = 0) {
             self.name = name
@@ -162,6 +168,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             self.translation = translation
             self.offset = offset
             self.lastValue = "-"
+            self.enabled = false
         }
         
         // process data and stores the value in the lastValue field
@@ -232,7 +239,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         }
         
         func processData(_ data: Data) {
-            features.forEach{ $0.processData(data) }
+            features.forEach{ if $0.enabled { $0.processData(data) } }
         }
         
         func indexOf(_ feature: STFeature) -> Int? {
@@ -246,6 +253,23 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             }
             
             return res
+        }
+        
+        // enable feature
+        func enableFeature(_ feature: STFeature) {
+            guard let f = features.first(where: { $0 === feature }) else { return }
+            f.enabled = true
+            char.service.peripheral.setNotifyValue(true, for: char)
+        }
+        
+        // disable feature
+        func disableFeature(_ feature: STFeature) {
+            guard let f = features.first(where: { $0 === feature }) else { return }
+            f.enabled = false
+            if features.count == features.reduce(0, { $0 + ($1.enabled ? 0 : 1) }) {
+                char.service.peripheral.setNotifyValue(false, for: char)
+                print("-> Disable notification for char \(char.uuid)")
+            }
         }
     }
     
@@ -481,6 +505,8 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                         sensors.append(sensor)
                     }
                     
+                    feature.enabled = true
+                    
                     print("-> Found feature: \(feature.name)")
                     tableView.reloadData()
                     msg = "Found \(sensors.count) sensors"
@@ -524,6 +550,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             }
         }
     } 
+    
     
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         if characteristic.uuid == charDebugTermUUID {
@@ -799,8 +826,48 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         peripheral!.writeValue(mData as Data, for: termChar, type: .withResponse)        
     }
     
+    // MARK: STFeatureSearch
+    
+    func featureByIndexPath(_ indexPath: IndexPath) -> STFeature? {
+        var idx = 0
+        for sensor in sensors {
+            for feature in sensor.features {
+                if  idx == indexPath.row {
+                    return feature
+                }
+                idx += 1
+            }
+        }
+        
+        return nil
+    }
+    
+    func indexPathForFeature(_ feature: STFeature) -> IndexPath? {
+        var idx = 0
+        for s in sensors {
+            for f in s.features {
+                if f === feature { return IndexPath(row: idx, section: 0) }
+                idx += 1
+            }
+        }
+        return nil
+    }
 
     // MARK: - TableView Delegate & DataSource
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        guard   let f = featureByIndexPath(indexPath),
+                let sensor = sensors.first(where: {
+                    for tmp in $0.features { if tmp === f { return true }}
+                    return false
+                })
+        else {
+            preconditionFailure("Can not get feature by its index")
+        }
+        
+        f.enabled ? sensor.disableFeature(f) : sensor.enableFeature(f)
+    }
+    
+    
     func numberOfSections(in tableView: UITableView) -> Int {
         return 1
     }
@@ -810,24 +877,18 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let cell = tableView.dequeueReusableCell(withIdentifier: "sensorCell") as? SensorCell else {
+        guard   let cell = tableView.dequeueReusableCell(withIdentifier: "sensorCell") as? SensorCell,
+                let feature = featureByIndexPath(indexPath)
+        else {
             preconditionFailure("Can not deque cell for sensor view table")
         }
+
+        cell.name.text = feature.name
+        cell.value.text = feature.lastValue
+        cell.units.text = feature.unit
+        cell.backgroundColor = feature.enabled ? UIColor.white : UIColor(white: 0.9, alpha: 0.9)
         
-        var idx = 0
-        for sensor in sensors {
-            for feature in sensor.features {
-                if  idx == indexPath.row {
-                    cell.name.text = feature.name
-                    cell.value.text = feature.lastValue
-                    cell.units.text = feature.unit
-                    return cell
-                }
-                idx += 1
-            }
-        }
-        
-        preconditionFailure("Can not find sensor data for indexPath: \(indexPath)")
+        return cell
     }
 }
 
