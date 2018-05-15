@@ -57,6 +57,16 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     
     // blueST advertisment packet
     struct STAdvPacket {
+        // node type
+        enum DeviceType: String {
+            case sensorTile     = "SensorTile"
+            case blueCoin       = "BlueCoin"
+            case blueNRG2       = "Blue-NRG2"
+            case genericNucleo  = "Generic Nucleo"
+            case nucleoRemote   = "Generic Nucleo with Remote Feature"
+            case unknown        = "Unknown"
+        }
+        
         // holds data
         private var data: Data
         
@@ -72,8 +82,27 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             return Int(data[0])
         }
         
-        var deviceType: Int {
-            return Int(data[1])
+        var deviceType: DeviceType {
+            let type = UInt8( data[1] )
+
+            let isNucleo = (type & 0x80) != 0
+            
+            switch (type & ~0x80) {
+            case 0x01:
+                return isNucleo ? .nucleoRemote : .unknown
+                
+            case 0x02:
+                return .sensorTile
+                
+            case 0x03:
+                return .blueCoin
+                
+            case 0x04:
+                return .blueNRG2
+                
+            default:
+                return isNucleo ? .genericNucleo : .unknown
+            }
         }
         
         var macAddress: String? {
@@ -81,7 +110,8 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 return nil
             }
             
-            return String(format: "%02x:%02x:%02x:%02x:%02x:%02x", data[6], data[7], data[8], data[9], data[10], data[11])
+            return String(format: "%02x:%02x:%02x:%02x:%02x:%02x",  data[6], data[7], data[8],
+                                                                    data[9], data[10], data[11])
         }
     }
     
@@ -93,21 +123,25 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         // blueST feature value type
         enum FeatureType: Int {
             case int8,  uint8
-            case int16, uint16, int16x3, int16x4
+            case int16, uint16, int16x3, int16x3xint8
             case int32, uint32
             
             var size: Int {
                 switch self {
                 case .int8, .uint8:
                     return 1
+                    
                 case .int16, .uint16:
                     return 2
+                    
                 case .int32, .uint32:
                     return 4
+                    
                 case .int16x3:
                     return 6
-                case .int16x4:
-                    return 8
+                    
+                case .int16x3xint8:
+                    return 7
                 }
             }
         }
@@ -157,8 +191,21 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 let val2 = t(Float(data.int16(offset: offset + 4)))
                 lastValue = "X:\(val0)\r\nY:\(val1)\r\nZ:\(val2)"
 
-            case .int16x4:
-                lastValue = "int16x4"
+            // its'battery
+            case .int16x3xint8:
+                let percentage = Float(data.uint16()) * 0.1
+                let voltage = Float(data.int16(offset: offset + 2)) * 0.001
+                let current = Float(data.int16(offset: offset + 4)) * 0.1
+                let status = data.uint8(offset: offset + 6)
+                var statusString = "-"
+                switch status {
+                    case 0x0: statusString = "Low"
+                    case 0x1: statusString = "Discharging"
+                    case 0x2: statusString = "Plugged"
+                    case 0x3: statusString = "Charging"
+                    default:  break
+                }
+                lastValue = "\(percentage)\r\n\(voltage)\r\n\(current)\r\n\(statusString)"
             }
         }
         
@@ -204,21 +251,29 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     
     // blueST featureMap
     let featureMap: [UInt32: STFeature] = [
-        0x40000000: STFeature( "Adpm sync",            unit: "-",    type: .uint32),
-        0x20000000: STFeature( "Switch",               unit: "-",    type: .uint8),
-        0x10000000: STFeature( "Direction of arrival", unit: "-",    type: .int16),
-        0x08000000: STFeature( "Audio ADPCM",          unit: "-",    type: .int16),       // use full packet data size
-        0x04000000: STFeature( "Mic Level",            unit: "db",   type: .uint8),
-        0x02000000: STFeature( "Proximity",            unit: "mm",   type: .uint16),
-        0x01000000: STFeature( "Luminosity",           unit: "lux",  type: .uint16),
-        0x00800000: STFeature( "Accelerometer",        unit: "mg",   type: .int16x3),
-        0x00400000: STFeature( "Gyroscope",            unit: "dps",  type: .int16x3, scale: 0.1),
-        0x00200000: STFeature( "Magnetometer",         unit: "mGa",  type: .int16x3),
-        0x00100000: STFeature( "Pressure",             unit: "mBar", type: .uint32,  scale: 0.01),
-        0x00080000: STFeature( "Humidity",             unit: "%",    type: .int16,   scale: 0.1),
-        0x00040000: STFeature( "Temperature",          unit: "F",    type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 }),
-        0x00020000: STFeature( "Battery",              unit: "-",    type: .int16x4),
-        0x00010000: STFeature( "Temperature 2",        unit: "F",    type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 })
+        0x40000000: STFeature( "Adpm sync",            unit: "-",               type: .uint32),
+        0x20000000: STFeature( "Switch",               unit: "-",               type: .uint8),
+        0x10000000: STFeature( "Direction of arrival", unit: "-",               type: .int16),
+        0x08000000: STFeature( "Audio ADPCM",          unit: "-",               type: .int16),       // use full packet data size
+        0x04000000: STFeature( "Mic Level",            unit: "db",              type: .uint8),
+        0x02000000: STFeature( "Proximity",            unit: "mm",              type: .uint16),
+        0x01000000: STFeature( "Luminosity",           unit: "lux",             type: .uint16),
+        0x00800000: STFeature( "Accelerometer",        unit: "mg",              type: .int16x3),
+        0x00400000: STFeature( "Gyroscope",            unit: "dps",             type: .int16x3, scale: 0.1),
+        0x00200000: STFeature( "Magnetometer",         unit: "mGa",             type: .int16x3),
+        0x00100000: STFeature( "Pressure",             unit: "mBar",            type: .uint32,  scale: 0.01),
+        0x00080000: STFeature( "Humidity",             unit: "%",               type: .int16,   scale: 0.1),
+        0x00040000: STFeature( "Temperature",          unit: "F",               type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 }),
+        0x00020000: STFeature( "Battery",              unit: "%\r\nV\r\nmA\r\nStatus",    type: .int16x3xint8),
+        0x00010000: STFeature( "Temperature 2",        unit: "F",               type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 })
+    ]
+    
+    // disabled feature map, these features will be ignored
+    let disabledFeatureMap: [UInt32] = [
+        0x40000000, // Adpm sync
+        0x10000000, // Direction of arrival
+        0x08000000, // Audio ADPCM
+        0x20000000  // Switch
     ]
     
     // detected features
@@ -267,6 +322,12 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     // found device
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber)
     {
+        guard self.peripheral == nil else {
+            // already connected
+            //print("CentralManager() -> Skipped \(peripheral.name)")
+            return
+        }
+        
         guard let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data else {
             return
         }
@@ -277,12 +338,13 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             return
         }
         
-        if let advName = advertisementData[CBAdvertisementDataLocalNameKey] as? String {
-            print("CentralManager() -> Advertisment name: \(advName)")
+        guard let advName = advertisementData[CBAdvertisementDataLocalNameKey] as? String else {
+            return
         }
         
+        print("CentralManager() -> Advertisment name: \(advName)")
         print("CentralManager() -> Protocol version: \(stPacket.protocolVer)")
-        print("CentralManager() -> Device type: \(stPacket.deviceType)")
+        print("CentralManager() -> Device type: \(stPacket.deviceType.rawValue)")
 
         msg = "Connecting to \(peripheral.name ?? "-")..."
         
@@ -295,7 +357,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     {
         print("CentralManager() -> Successfully connected to \(peripheral.name ?? "-")")
         msg = "Discovering services ..."
-        
+        macAddressLabel.text = peripheral.name ?? "Unknown"
         peripheral.delegate = self
         peripheral.discoverServices(nil)
     }
@@ -401,8 +463,11 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 featureBit >>= 1
                 //guard var feature = featureMap[featureBit] else { break }
                 
-                // this feature is detected in mask
-                if ( mask & featureBit ) != 0, let feature = featureMap[featureBit] {
+                // this feature is detected in mask and is enabled
+                if ( mask & featureBit ) != 0,
+                    let feature = featureMap[featureBit],
+                    disabledFeatureMap.index(where: { $0 == featureBit }) == nil
+                {
                     feature.offset = offset
                     offset += feature.type.size
                     
@@ -661,12 +726,18 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     }
     
     @IBAction func reconnectButtonPressed(_ sender: UIButton) {
-        if let manager = centralManager {
-            manager.scanForPeripherals(withServices: nil, options: nil)
+        if let manager = centralManager, let p = self.peripheral {
+            manager.cancelPeripheralConnection(p)
             
             peripheral = nil
             fwUploadInProgress = false
             fwStarted = false
+            sensors.removeAll()
+            tableView.reloadData()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                manager.scanForPeripherals(withServices: nil, options: nil)
+            }
         }
         else {
             print("==> CentralManager is nil, can not rediscover/reconnect")

@@ -18,11 +18,17 @@ extension Data {
     }
     
     func uint8(offset:Int = 0) -> UInt8 {
-        return UInt8(int8(offset: offset))
+        var t: UInt8 = 0
+        let nsdata = self as NSData
+        nsdata.getBytes(&t, range: NSMakeRange(offset, 1))
+        return t
     }
     
     func uint16(offset:Int = 0) -> UInt16 {
-        return UInt16(int16(offset: offset))
+        var t: UInt16 = 0
+        let nsdata = self as NSData
+        nsdata.getBytes(&t, range: NSMakeRange(offset, 2))
+        return t
     }
     
     func int16(offset:Int = 0) -> Int16 {
@@ -40,7 +46,10 @@ extension Data {
     }
     
     func uint32(offset:Int = 0) -> UInt32 {
-        return UInt32(int32(offset: offset))
+        var t: UInt32 = 0
+        let nsdata = self as NSData
+        nsdata.getBytes(&t, range: NSMakeRange(offset, 4))
+        return t
     }
 }
 
