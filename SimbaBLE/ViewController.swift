@@ -75,12 +75,10 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         }
         
         var isSTPacket: Bool {
-            return (data.count == 6 || data.count == 12) && protocolVer >= 1 // compact or full size packet
+            return (data.count == 6 || data.count == 12) && protocolVer >= 1  && deviceType != .unknown // compact or full size packet
         }
         
-        var protocolVer: Int {
-            return Int(data[0])
-        }
+        var protocolVer: Int { return Int(data[0]) }
         
         var deviceType: DeviceType {
             let type = UInt8( data[1] )
@@ -121,7 +119,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         static let serviceSuffixUUID = "-0001-11E1-9AB4-0002A5D5C51B"
         
         // blueST feature value type
-        enum FeatureType: Int {
+        enum ValueType: Int {
             case int8,  uint8
             case int16, uint16, int16x3, int16x3xint8
             case int32, uint32
@@ -146,21 +144,30 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             }
         }
         
+        // holds the name of features
         var name: String
+        // holds the unit of features
         var unit: String
-        var type: FeatureType
+        // holds the value type of feautre
+        var type: ValueType
+        // scale factor for feature
         var scale: Float
+        // translation clousure to transform value after the scale
         var translation: ((Float) -> Float)?
+        // feature raw data offset
         var offset: Int
+        // last value written
         var lastValue: String {
             willSet(value) {
                 lastValueChanged = value != lastValue
             }
         }
+        // if feature is enabled it updates its lastValue
         var enabled: Bool
+        // if true - last update for value was diffrent than previous
         var lastValueChanged: Bool = true
         
-        init(_ name: String, unit: String, type: FeatureType, scale: Float = 1.0, translation: ((Float) -> Float)? = nil, offset: Int = 0) {
+        init(_ name: String, unit: String, type: ValueType, scale: Float = 1.0, translation: ((Float) -> Float)? = nil, offset: Int = 0) {
             self.name = name
             self.type = type
             self.unit = unit
@@ -827,7 +834,8 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
     }
     
     // MARK: STFeatureSearch
-    
+
+    /// find feature by its indexPath in tableView
     func featureByIndexPath(_ indexPath: IndexPath) -> STFeature? {
         var idx = 0
         for sensor in sensors {
@@ -842,6 +850,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         return nil
     }
     
+    /// return tableView indexpath for feature
     func indexPathForFeature(_ feature: STFeature) -> IndexPath? {
         var idx = 0
         for s in sensors {
@@ -850,16 +859,21 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 idx += 1
             }
         }
+        
         return nil
+    }
+    
+    /// return sensor for feature
+    func sensorForFeature(_ feature: STFeature) -> STSensor? {
+        return sensors.first { return $0.features.first { $0 === feature } != nil }
     }
 
     // MARK: - TableView Delegate & DataSource
+    
+    // enable/disable feature by tap
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         guard   let f = featureByIndexPath(indexPath),
-                let sensor = sensors.first(where: {
-                    for tmp in $0.features { if tmp === f { return true }}
-                    return false
-                })
+                let sensor = sensorForFeature(f)
         else {
             preconditionFailure("Can not get feature by its index")
         }
