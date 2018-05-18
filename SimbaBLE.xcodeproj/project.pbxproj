@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		2C25C0C220A99E19001D9F93 /* SensorCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C25C0C120A99E19001D9F93 /* SensorCell.swift */; };
 		2C25C0C420A9A8E8001D9F93 /* Data+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C25C0C320A9A8E8001D9F93 /* Data+Extension.swift */; };
-		2C25C0C620A9A9CA001D9F93 /* UInt32+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C25C0C520A9A9CA001D9F93 /* UInt32+Extension.swift */; };
 		2C83FA1920177572009A8E25 /* fw1.bin in Resources */ = {isa = PBXBuildFile; fileRef = 2C83FA1820177572009A8E25 /* fw1.bin */; };
 		2C83FA1B20177578009A8E25 /* fw2.bin in Resources */ = {isa = PBXBuildFile; fileRef = 2C83FA1A20177578009A8E25 /* fw2.bin */; };
 		2C83FA1D2017757E009A8E25 /* fw3.bin in Resources */ = {isa = PBXBuildFile; fileRef = 2C83FA1C2017757E009A8E25 /* fw3.bin */; };
@@ -25,7 +24,6 @@
 /* Begin PBXFileReference section */
 		2C25C0C120A99E19001D9F93 /* SensorCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorCell.swift; sourceTree = "<group>"; };
 		2C25C0C320A9A8E8001D9F93 /* Data+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Data+Extension.swift"; sourceTree = "<group>"; };
-		2C25C0C520A9A9CA001D9F93 /* UInt32+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UInt32+Extension.swift"; sourceTree = "<group>"; };
 		2C83FA1820177572009A8E25 /* fw1.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = fw1.bin; sourceTree = "<group>"; };
 		2C83FA1A20177578009A8E25 /* fw2.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = fw2.bin; sourceTree = "<group>"; };
 		2C83FA1C2017757E009A8E25 /* fw3.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = fw3.bin; sourceTree = "<group>"; };
@@ -74,7 +72,6 @@
 				2C97C2131FEA979F00F47C16 /* ViewController.swift */,
 				2C25C0C120A99E19001D9F93 /* SensorCell.swift */,
 				2C25C0C320A9A8E8001D9F93 /* Data+Extension.swift */,
-				2C25C0C520A9A9CA001D9F93 /* UInt32+Extension.swift */,
 				2C988CF82014E1C000852B0F /* Crc.swift */,
 				2C97C2151FEA979F00F47C16 /* Main.storyboard */,
 				2C97C21A1FEA979F00F47C16 /* LaunchScreen.storyboard */,
@@ -177,7 +174,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2C25C0C620A9A9CA001D9F93 /* UInt32+Extension.swift in Sources */,
 				2C988CF92014E1C000852B0F /* Crc.swift in Sources */,
 				2C25C0C220A99E19001D9F93 /* SensorCell.swift in Sources */,
 				2C25C0C420A9A8E8001D9F93 /* Data+Extension.swift in Sources */,

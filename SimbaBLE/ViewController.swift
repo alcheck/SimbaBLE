@@ -144,28 +144,21 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             }
         }
         
-        // holds the name of features
         var name: String
-        // holds the unit of features
         var unit: String
-        // holds the value type of feautre
         var type: ValueType
-        // scale factor for feature
         var scale: Float
-        // translation clousure to transform value after the scale
         var translation: ((Float) -> Float)?
-        // feature raw data offset
         var offset: Int
-        // last value written
-        var lastValue: String {
-            willSet(value) {
-                lastValueChanged = value != lastValue
-            }
-        }
+        var lastValue: String
+
         // if feature is enabled it updates its lastValue
         var enabled: Bool
-        // if true - last update for value was diffrent than previous
-        var lastValueChanged: Bool = true
+        
+        // command
+        var command: ((CBCharacteristic) -> Void)? {
+            return nil
+        }
         
         init(_ name: String, unit: String, type: ValueType, scale: Float = 1.0, translation: ((Float) -> Float)? = nil, offset: Int = 0) {
             self.name = name
@@ -197,36 +190,77 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 lastValue = "\(t(Float(data.int32(offset: offset))))"
 
             case .uint32:
-                lastValue = "\(t(Float(data.uint32(offset: offset))))"                
-            
-            case .int16x3:
-                let val0 = t(Float(data.int16(offset: offset)))
-                let val1 = t(Float(data.int16(offset: offset + 2)))
-                let val2 = t(Float(data.int16(offset: offset + 4)))
-                lastValue = "X:\(val0)\r\nY:\(val1)\r\nZ:\(val2)"
-
-            // its'battery
-            case .int16x3xint8:
-                let percentage = Float(data.uint16()) * 0.1
-                let voltage = Float(data.int16(offset: offset + 2)) * 0.001
-                let current = Float(data.int16(offset: offset + 4)) * 0.1
-                let status = data.uint8(offset: offset + 6)
-                var statusString = "-"
-                switch status {
-                    case 0x0: statusString = "Low"
-                    case 0x1: statusString = "Discharging"
-                    case 0x2: statusString = "Plugged"
-                    case 0x3: statusString = "Charging"
-                    default:  break
-                }
-                lastValue = "\(percentage)\r\n\(voltage)\r\n\(current)\r\n\(statusString)"
+                lastValue = "\(t(Float(data.uint32(offset: offset))))"
+                
+            default:
+                break
             }
         }
         
-        private func t(_ v: Float ) -> Float {
+        func t(_ v: Float ) -> Float {
             var r = v * scale
             if let trans = translation { r = trans(r) }
             return r
+        }
+    }
+    
+    class STFeatureXYZ: STFeature {
+        override func processData(_ data: Data) {
+            guard type == .int16x3 else {
+                preconditionFailure("STFeatireXYZ: wrong valytType != .int16x3")
+            }
+            
+            let val0 = t(Float(data.int16(offset: offset)))
+            let val1 = t(Float(data.int16(offset: offset + 2)))
+            let val2 = t(Float(data.int16(offset: offset + 4)))
+            
+            lastValue = "X:\(val0)\r\nY:\(val1)\r\nZ:\(val2)"
+        }
+    }
+    
+    class STFeatureSwitch: STFeature {
+        override var command: ((CBCharacteristic) -> Void)? {
+            return { char in
+                let isOn = self.lastValue.hasPrefix("1")
+                let cmd = Data(bytes: [ 0x20, 0x00, 0x00, 0x00, isOn ? 0x00 : 0x01 ])
+                char.service.peripheral.writeValue(cmd, for: char, type: .withResponse)
+            }
+        }
+        
+        override func processData(_ data: Data) {
+            guard type == .uint8 else {
+                preconditionFailure("STFeatureSwitch: wrong valueType != .int8")
+            }
+            
+            lastValue = "\(data.uint8(offset: offset))"
+        }
+    }
+    
+    class STFeatureBattery: STFeature {
+        init() {
+            super.init("Battery", unit: "%\r\nV\r\nmA\r\nStatus", type: .int16x3xint8)
+        }
+        
+        override func processData(_ data: Data) {
+            guard type == .int16x3xint8 else {
+                preconditionFailure("STFeatureBattery: wrong valueType != .int16x3xint8")
+            }
+            
+            let percentage = Float(data.uint16()) * 0.1
+            let voltage = Float(data.int16(offset: offset + 2)) * 0.001
+            let current = Float(data.int16(offset: offset + 4)) * 0.1
+            let status = data.uint8(offset: offset + 6)
+            var statusString = "-"
+            
+            switch status {
+                case 0x0: statusString = "Low"
+                case 0x1: statusString = "Discharging"
+                case 0x2: statusString = "Plugged"
+                case 0x3: statusString = "Charging"
+                default:  break
+            }
+            
+            lastValue = "\(percentage)\r\n\(voltage)\r\n\(current)\r\n\(statusString)"
         }
     }
     
@@ -278,25 +312,34 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 print("-> Disable notification for char \(char.uuid)")
             }
         }
+        
+        // send command to feature
+        func command(_ feature: STFeature) {
+            guard let command = feature.command else {
+                return
+            }
+            
+            command(char)
+        }
     }
     
-    // blueST featureMap
+    // blueST featureMap [Mask : Feature]
     let featureMap: [UInt32: STFeature] = [
-        0x40000000: STFeature( "Adpm sync",            unit: "-",               type: .uint32),
-        0x20000000: STFeature( "Switch",               unit: "-",               type: .uint8),
-        0x10000000: STFeature( "Direction of arrival", unit: "-",               type: .int16),
-        0x08000000: STFeature( "Audio ADPCM",          unit: "-",               type: .int16),       // use full packet data size
-        0x04000000: STFeature( "Mic Level",            unit: "db",              type: .uint8),
-        0x02000000: STFeature( "Proximity",            unit: "mm",              type: .uint16),
-        0x01000000: STFeature( "Luminosity",           unit: "lux",             type: .uint16),
-        0x00800000: STFeature( "Accelerometer",        unit: "mg",              type: .int16x3),
-        0x00400000: STFeature( "Gyroscope",            unit: "dps",             type: .int16x3, scale: 0.1),
-        0x00200000: STFeature( "Magnetometer",         unit: "mGa",             type: .int16x3),
-        0x00100000: STFeature( "Pressure",             unit: "mBar",            type: .uint32,  scale: 0.01),
-        0x00080000: STFeature( "Humidity",             unit: "%",               type: .int16,   scale: 0.1),
-        0x00040000: STFeature( "Temperature",          unit: "F",               type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 }),
-        0x00020000: STFeature( "Battery",              unit: "%\r\nV\r\nmA\r\nStatus",    type: .int16x3xint8),
-        0x00010000: STFeature( "Temperature 2",        unit: "F",               type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 })
+        0x40000000: STFeature( "Adpm sync",                 unit: "-",   type: .uint32),
+        0x20000000: STFeatureSwitch( "Switch",              unit: "-",   type: .uint8),
+        0x10000000: STFeature( "Direction of arrival",      unit: "-",   type: .int16),
+        0x08000000: STFeature( "Audio ADPCM",               unit: "-",   type: .int16),       // use full packet data size
+        0x04000000: STFeature( "Mic Level",                 unit: "db",  type: .uint8),
+        0x02000000: STFeature( "Proximity",                 unit: "mm",  type: .uint16),
+        0x01000000: STFeature( "Luminosity",                unit: "lux", type: .uint16),
+        0x00800000: STFeatureXYZ( "Accelerometer",          unit: "mg",  type: .int16x3),
+        0x00400000: STFeatureXYZ( "Gyroscope",              unit: "dps", type: .int16x3, scale: 0.1),
+        0x00200000: STFeatureXYZ( "Magnetometer",           unit: "mGa", type: .int16x3),
+        0x00100000: STFeature( "Pressure",                  unit: "mBar",type: .uint32,  scale: 0.01),
+        0x00080000: STFeature( "Humidity",                  unit: "%",   type: .int16,   scale: 0.1),
+        0x00040000: STFeature( "Temperature",               unit: "F",   type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 }),
+        0x00020000: STFeatureBattery(),
+        0x00010000: STFeature( "Temperature 2",             unit: "F",   type: .int16,   scale: 0.1,  translation: { $0 * 1.8 + 32.0 })
     ]
     
     // disabled feature map, these features will be ignored
@@ -304,7 +347,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         0x40000000, // Adpm sync
         0x10000000, // Direction of arrival
         0x08000000, // Audio ADPCM
-        0x20000000  // Switch
+        //0x20000000  // Switch
     ]
     
     // detected features
@@ -462,19 +505,18 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
                 return
             }
             else if char.uuid == charDebugErrorUUID {
-                //peripheral.setNotifyValue(true, for: char)
                 errChar = char
                 return
             }
             
             if !service.uuid.uuidString.hasSuffix(STFeature.serviceSuffixUUID) {
+                // it's not a common service
                 continue
             }
             
-            let data = char.uuid.data as NSData
             var beMask: UInt32 = 0
-            data.getBytes(&beMask, length: 4)
-            let mask = beMask.beToLe()
+            (char.uuid.data as NSData).getBytes(&beMask, length: 4)
+            let mask = beMask.bigEndian
             
             let maskStr = String(format:"0x%08x", mask)
             
@@ -486,14 +528,11 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             print("-> Char mask: \(maskStr), \(prop)")
             
             var featureBit: UInt32 = 0x80000000
-            // starts with timestamp
+            // starts with skipping timestamp
             var offset = 2
-            
+            // take only high 16 bits
             for _ in 0..<16 {
-                // get mask
                 featureBit >>= 1
-                //guard var feature = featureMap[featureBit] else { break }
-                
                 // this feature is detected in mask and is enabled
                 if ( mask & featureBit ) != 0,
                     let feature = featureMap[featureBit],
@@ -878,7 +917,12 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
             preconditionFailure("Can not get feature by its index")
         }
         
-        f.enabled ? sensor.disableFeature(f) : sensor.enableFeature(f)
+        if f.command != nil {
+            sensor.command(f)
+        }
+        else {
+            f.enabled ? sensor.disableFeature(f) : sensor.enableFeature(f)
+        }
     }
     
     
@@ -898,6 +942,7 @@ class ViewController: UIViewController, CBCentralManagerDelegate, CBPeripheralDe
         }
 
         cell.name.text = feature.name
+        cell.name.textColor = feature.command != nil ? tableView.tintColor : UIColor.black
         cell.value.text = feature.lastValue
         cell.units.text = feature.unit
         cell.backgroundColor = feature.enabled ? UIColor.white : UIColor(white: 0.9, alpha: 0.9)
